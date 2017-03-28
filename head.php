@@ -6,7 +6,7 @@ $password = 'general';
 $schema = 'db_general_1617';
 
 $pdo = new PDO('mysql:dbname=' . $schema . ';host=' . $server, $username, $password, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
-
+session_start();
  ?>
 
 
@@ -33,25 +33,32 @@ $pdo = new PDO('mysql:dbname=' . $schema . ';host=' . $server, $username, $passw
       </form>
   </div>
 
-
-	
+<?php
+if (isset($_SESSION['loggedin']))
+	{
+?>
+	<p class = "register">
+        <a href = "profile.php">Profile</a>
+        <a href = "logout.php">Log out</a>
+<?php
+	}
+	else
+	{
+?>
+    </p>
     <p class = "register">
         <a href = "login.php">Sign in</a>
         <a href = "register.php">Sign up</a>
-
+<?php
+	}
+?>
     </p>
-
     <p class = "basket">
         <a href = "basket.php">
             <img src = "images/basket.jpg" alt = "basket"><br>Basket
         </a>
     </p>
 
-    <p class = "wishlist">
-        <a href = "wishlist.php">
-            <img src = "images/wishlist.png" alt = "wishlist"><br>Wishlist
-        </a>
-    </p>
 <?php
   $bookCat= ['Databases', 'Networking', 'Java', 'Systems', 'Web Design', 'Software Engineering', 'Problem Solving', 'Other'];
 ?>

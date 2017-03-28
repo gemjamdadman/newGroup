@@ -1,60 +1,43 @@
 <?php
-SESSION_START();
-//require 'head.php';
-require 'connect.php';
-require 'bookClass.php';
+require 'bookClass.php'; // Needs to be included BEFORE head (which starts the SESSION) otherwise the session can't save the bookClass object because it doesn't know what it is!
+require 'head.php';
 ?>
 
 <div class = "dataSearch">
 <p>
   <?php
   if(isset($_GET['ISBN']))
-{
+  {
+      $stmt = $pdo->query('SELECT * FROM BOOK WHERE ISBN =' . $_GET['ISBN']);
+      $result = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    $stmt = mysqli_query($con, 'SELECT * FROM BOOK WHERE ISBN =' . $_GET['ISBN']);
-    $result = mysqli_fetch_object($stmt);
+      $bookClass = new bookClass();
+      $bookClass->ISBN = $result['ISBN'];
+      $bookClass->title = $result['TITLE'];
+      $bookClass->author = $result['AUTHOR'];
+      $bookClass->price = $result['PRICE'];
+      $bookClass->quantity = 1;
 
-    $bookClass = new bookClass();
-    $bookClass->ISBN = $result->ISBN;
-    $bookClass->title = $result->title;
-    $bookClass->author = $result->author;
-    $bookClass->price = $result->price;
-    $bookClass->quantity = 1;
+      $basket = (isset($_SESSION['basket'])) ? $_SESSION['basket'] : [];
+      $basket[$bookClass->ISBN] = $bookClass;
 
-    $index = -1;
-    $basket = unserialize(serialize($_SESSION['loggedin']));
+      $basket['quantity'] = getBasketQuantity($basket);
+      updateSessionBasket($basket); // Out with the old, In with the new.
 
-    for ($i=0; $i<count($basket); $i++)
-    {
-      if ($basket[$i]->ISBN==$_GET['ISBN'])
-      {
-        $index = $i;
-        break;
-      }
-
-      if ($index == -1)
-      {
-        $_SESSION['loggedin'] [] = $item;
-      }
-
-      else
-      {
-        $basket[$index]->quantity++;
-        $_SESSION['loggedin'] [] = $basket;
-      }
     }
-
-    if(isset($_GET['index']))
+    elseif (isset($_GET['remove']))
     {
-      $basket = unserialize(serialize($_SESSION['loggedin']));
-      unset ($basket[$_GET['index']]) ;
-      $basket = array_values($basket);
-      $_SESSION['loggedin'] [] = $basket;
+      $basket = $_SESSION['basket'];
+      if (array_key_exists($_GET['remove'], $basket)) {
+        unset($basket[$_GET['remove']]);
+      }
+      $basket['quantity'] = getBasketQuantity($basket);
+      updateSessionBasket($basket); // Out with the old, In with the new.
     }
 ?>
 <table cellpadding="2" cellspacing="2" border="1">
   <tr>
-    <th>OPTION</th>
+    <!-- <th>OPTION</th> -->
     <th>ISBN</th>
     <th>TITLE</th>
     <th>AUTHOR</th>
@@ -63,42 +46,66 @@ require 'bookClass.php';
     <th>TOTAL</th>
   </tr>
 <?php
-  $basket = unserialize(serialize($_SESSION['loggedin']));
+  $total = 0;
+  $basket = $_SESSION['basket'];
 
-  $add = 0;
-  $index = 0;
-
-    for ($i=0; $i<count($basket); $i++)
-    {
-      $add += $basket[$i]->price * $basket[$i]->quantity;
+  foreach ($basket as $item)
+  {
+    if ($item instanceof bookClass) { // Stops Quantity array entry being shown in list - only lists books!
+      $itemTotal = $item->price * $item->quantity;
+      $total += $itemTotal;
 ?>
-
       <tr>
-        <td><a href="basket.php?index=<?php echo $index; ?>"</td>
-        <td><?php echo $basket[$i]->ISBN; ?></td>
-        <td><?php echo $basket[$i]->title; ?></td>
-        <td><?php echo $basket[$i]->author; ?></td>
-        <td><?php echo $basket[$i]->price; ?></td>
-        <td><?php echo $basket[$i]->quantity; ?></td>
-        <td><?php echo $basket[$i]->price * $basket[$i]->quantity; ?></td>
+        <td><a href="basket.php?remove=<?php echo $item->ISBN; ?>">Remove</a></td>
+        <td><?php echo $item->title; ?></td>
+        <td><?php echo $item->author; ?></td>
+        <td>
+          <?php
+            echo "£" . sprintf("%0.2f", $item->price); // http://php.net/manual/en/function.sprintf.php see example 10
+          ?>
+        </td>
+        <td><?php echo $item->quantity; ?></td>
+        <td>
+          <?php
+            echo "£" . sprintf("%0.2f", $itemTotal); // http://php.net/manual/en/function.sprintf.php see example 10
+          ?>
+        </td>
       </tr>
 <?php
-        $index++;
     }
+  }
 ?>
   <tr>
-    <td colspan="7" align="right">SUM</td>
-    <td align="left"><?php echo $add; ?></td>
+    <td colspan="5" align="right">SUM</td>
+    <td align="left"><?php echo "£" . sprintf("%0.2f", $total); // http://php.net/manual/en/function.sprintf.php see example 10 ?></td>
   </tr>
 </table>
 </br>
 <a href="index.php">Continue shopping</a>
-<?php
- }
-?>
 </p>
 </div>
 
 <?php
-require 'foot.php';
+
+  function getBasketQuantity($basket = null) {
+    if (isset($basket['quantity'])) {
+      unset($basket['quantity']);
+    }
+
+    $itemsInBasket = 0;
+    foreach ($basket as $item) {
+      $itemsInBasket += $item->quantity;
+    }
+
+    return $itemsInBasket;
+  }
+
+  function updateSessionBasket($basket = null) {
+    if (isset($_SESSION['basket'])) {
+      unset($_SESSION['basket']); // Out with the old
+    }
+    $_SESSION['basket'] = $basket; // In with the new
+  }
+
+  require 'foot.php';
  ?>
